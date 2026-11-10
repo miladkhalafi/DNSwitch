@@ -19,8 +19,15 @@ final class WiFiMonitor: NSObject, ObservableObject {
     private let locationManager = CLLocationManager()
     private var pendingRefresh: DispatchWorkItem?
 
-    override init() {
+    init(demo: Bool = false) {
         super.init()
+        if demo {
+            isConnected = true
+            ssid = DemoData.ssid
+            interfaceName = "en0"
+            locationStatus = .authorizedAlways
+            return
+        }
         locationManager.delegate = self
         locationStatus = locationManager.authorizationStatus
 

@@ -23,10 +23,16 @@ struct DNSwitchApp: App {
 }
 
 extension AppState {
-    static let shared = AppState()
+    static let shared = AppState(demo: Screenshots.outputDirectory != nil)
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        if let dir = Screenshots.outputDirectory {
+            MainActor.assumeIsolated { Screenshots.render(to: dir) }
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         // Don't leave our DNS behind when the app quits.
         MainActor.assumeIsolated {

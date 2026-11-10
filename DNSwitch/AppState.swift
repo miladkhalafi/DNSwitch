@@ -7,7 +7,7 @@ import ServiceManagement
 final class AppState: ObservableObject {
     struct LogEntry: Identifiable {
         let id = UUID()
-        let date = Date()
+        var date = Date()
         let text: String
     }
 
@@ -19,7 +19,9 @@ final class AppState: ObservableObject {
         didSet { updateLaunchAtLogin() }
     }
 
-    let wifi = WiFiMonitor()
+    let wifi: WiFiMonitor
+    /// Demo mode (screenshots): fake data, never touches DNS or saved settings.
+    let isDemo: Bool
 
     private let defaults = UserDefaults.standard
     private enum Keys {
@@ -30,7 +32,16 @@ final class AppState: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var evaluateWork: DispatchWorkItem?
 
-    init() {
+    init(demo: Bool = false) {
+        isDemo = demo
+        wifi = WiFiMonitor(demo: demo)
+        if demo {
+            settings = DemoData.settings
+            appliedServers = DemoData.applied
+            log = DemoData.log
+            launchAtLogin = true
+            return
+        }
         if let data = defaults.data(forKey: Keys.settings),
            let saved = try? JSONDecoder().decode(AppSettings.self, from: data) {
             settings = saved
@@ -57,6 +68,7 @@ final class AppState: ObservableObject {
     }
 
     func evaluate() {
+        guard !isDemo else { return }
         guard let service = wifiService else {
             lastError = "No Wi-Fi network service found."
             return
@@ -88,7 +100,7 @@ final class AppState: ObservableObject {
 
     /// Undo our change, if we made one.
     func removeOurDNS(service: String? = nil, reason: String) {
-        guard appliedServers != nil, let service = service ?? wifiService else { return }
+        guard !isDemo, appliedServers != nil, let service = service ?? wifiService else { return }
         let original = defaults.stringArray(forKey: Keys.original) ?? []
         let restore = settings.disconnectAction == .restorePrevious ? original : []
         do {
@@ -105,6 +117,7 @@ final class AppState: ObservableObject {
 
     /// Current DNS of the Wi-Fi service, for display.
     var currentSystemDNS: [String] {
+        if isDemo { return appliedServers ?? [] }
         guard let service = wifiService else { return [] }
         return (try? DNSController.servers(service: service)) ?? []
     }
@@ -126,6 +139,7 @@ final class AppState: ObservableObject {
     }
 
     private func saveSettings() {
+        guard !isDemo else { return }
         if let data = try? JSONEncoder().encode(settings) {
             defaults.set(data, forKey: Keys.settings)
         }
@@ -142,6 +156,7 @@ final class AppState: ObservableObject {
     }
 
     private func updateLaunchAtLogin() {
+        guard !isDemo else { return }
         do {
             if launchAtLogin {
                 try SMAppService.mainApp.register()

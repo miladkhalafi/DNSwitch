@@ -63,7 +63,10 @@ struct SettingsView: View {
             }
 
             Section {
-                ServersField(text: $state.settings.otherNetworksServers, placeholder: "Leave empty to not change DNS")
+                LabeledContent("DNS servers") {
+                    ServersField(text: $state.settings.otherNetworksServers, placeholder: "Leave empty to not change DNS")
+                        .frame(maxWidth: 320)
+                }
                 Picker("When disconnecting", selection: $state.settings.disconnectAction) {
                     ForEach(DisconnectAction.allCases) { Text($0.title).tag($0) }
                 }
@@ -107,9 +110,12 @@ private struct RuleRow: View {
                 .help(isCurrent ? "Connected now" : "Not connected")
                 .frame(width: 18)
             TextField("Network name", text: $rule.ssid, prompt: Text("Network name"))
+                .labelsHidden()
                 .textFieldStyle(.roundedBorder)
-                .frame(minWidth: 140)
+                .multilineTextAlignment(.leading)
+                .frame(width: 160)
             ServersField(text: $rule.servers, placeholder: "1.1.1.1, 1.0.0.1")
+                .frame(maxWidth: .infinity)
             Button(role: .destructive, action: onDelete) { Image(systemName: "trash") }
                 .buttonStyle(.borderless)
                 .help("Remove")
@@ -125,8 +131,11 @@ private struct ServersField: View {
     var body: some View {
         let valid = DNSAddress.isValidList(text)
         HStack(spacing: 4) {
-            TextField("", text: $text, prompt: Text(placeholder))
+            TextField("DNS servers", text: $text, prompt: Text(placeholder))
+                .labelsHidden()
                 .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.leading)
+                .lineLimit(1)
                 .font(.body.monospaced())
             Image(systemName: valid ? "checkmark.circle" : "exclamationmark.triangle.fill")
                 .foregroundStyle(valid ? Color.secondary : Color.red)
