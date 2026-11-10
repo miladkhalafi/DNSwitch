@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Check shell scripts
+        run: |
+          bash -n install.sh
+          bash -n Scripts/build-release.sh
+          zsh -n Scripts/dev-install.sh
+
+      - name: Build universal app
+        run: Scripts/build-release.sh "0.0.0-ci.${{ github.run_number }}"
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DNSwitch-ci-${{ github.run_number }}
+          path: dist/*
+          retention-days: 14

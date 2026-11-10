@@ -1,0 +1,56 @@
+name: Release
+
+# Push a version tag to publish a release:
+#   git tag v1.0.0 && git push origin v1.0.0
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v1.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build universal app
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: Scripts/build-release.sh "$TAG"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES=$(cat <<'EOF'
+          ## Install
+
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+          ```
+
+          Or download the zip below, unzip it, and move **DNSwitch.app** to Applications.
+          DNSwitch isn't notarized, so the first time you open a browser-downloaded copy macOS blocks it:
+          open **System Settings → Privacy & Security** and click **Open Anyway**, or run
+          `xattr -dr com.apple.quarantine /Applications/DNSwitch.app`.
+          EOF
+          )
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --title "DNSwitch ${TAG#v}" --notes "$NOTES" --generate-notes
+          fi
