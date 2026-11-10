@@ -36,7 +36,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          NOTES=$(cat <<'EOF'
+          # Heredoc straight to a file: macOS runners ship bash 3.2, which
+          # mis-parses quotes inside $(cat <<EOF ...).
+          cat > notes.md <<'EOF'
           ## Install
 
           ```bash
@@ -48,9 +50,8 @@ jobs:
           open **System Settings → Privacy & Security** and click **Open Anyway**, or run
           `xattr -dr com.apple.quarantine /Applications/DNSwitch.app`.
           EOF
-          )
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
           else
-            gh release create "$TAG" dist/* --title "DNSwitch ${TAG#v}" --notes "$NOTES" --generate-notes
+            gh release create "$TAG" dist/* --title "DNSwitch ${TAG#v}" --notes-file notes.md --generate-notes
           fi
